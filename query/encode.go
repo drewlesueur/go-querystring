@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -121,12 +122,130 @@ func Values(v interface{}) (url.Values, error) {
 		return values, nil
 	}
 
-	if val.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("query: Values() expects struct input. Got %v", val.Kind())
+	if val.Kind() != reflect.Struct && val.Kind() != reflect.Map {
+		return nil, fmt.Errorf("query: Values() expects struct or map input. Got %v", val.Kind())
 	}
 
 	err := reflectValue(values, val, "")
 	return values, err
+
+}
+
+func reflectMap(values url.Values, val reflect.Value, scope string) error {
+	mapKeys := val.MapKeys()
+
+	stringMapKeys := sort.StringSlice{}
+	for _, mapKey := range mapKeys {
+		if mapKey.Kind() == reflect.String {
+			stringMapKeys = append(stringMapKeys, mapKey.String())
+		}
+	}
+
+	for _, mapKey := range mapKeys {
+		mapValue := val.MapIndex(mapKey)
+
+		name := mapKey.String()
+		if scope != "" {
+			name = scope + "[" + name + "]"
+		}
+		// was here
+		sv := mapValue
+		fmt.Println("")
+		fmt.Println(mapKey)
+		fmt.Println("orig", sv)
+		fmt.Println("kind", sv.Kind())
+		fmt.Println("type", sv.Type())
+		fmt.Println("hi", reflect.ValueOf(sv))
+		fmt.Println("typeof", reflect.TypeOf(sv))
+
+		if sv.Kind() == reflect.Interface {
+			sv2 := sv.Interface()
+			fmt.Println("")
+			fmt.Println(mapKey)
+			fmt.Println("orig", sv2)
+			fmt.Println("hi", reflect.ValueOf(sv2))
+			fmt.Println("typeof", reflect.TypeOf(sv2))
+			switch v := sv2.(type) {
+			case []interface{}:
+				sv = reflect.ValueOf(v)
+				fmt.Println("yoyo slice!")
+			case map[string]interface{}:
+				sv = reflect.ValueOf(v)
+				fmt.Println("yoyo map!")
+			default:
+				fmt.Println("what is this!")
+			}
+			fmt.Println("got here!")
+
+		}
+
+		if sv.Type().Implements(encoderType) {
+			m := sv.Interface().(Encoder)
+			if err := m.EncodeValues(name, &values); err != nil {
+				return err
+			}
+			continue
+		}
+
+		defaultMapOpts := tagOptions{"brackets"} // for php/rails
+
+		if sv.Kind() == reflect.Slice || sv.Kind() == reflect.Array {
+			fmt.Println("yay got here")
+			reflectSliceOrArray(values, sv, name, defaultMapOpts)
+			continue
+		}
+
+		if sv.Type() == timeType {
+			values.Add(name, valueString(sv, defaultMapOpts))
+			continue
+		}
+
+		for sv.Kind() == reflect.Ptr {
+			if sv.IsNil() {
+				break
+			}
+			sv = sv.Elem()
+		}
+
+		if sv.Kind() == reflect.Struct {
+			reflectValue(values, sv, name)
+			continue
+		}
+
+		values.Add(name, valueString(sv, defaultMapOpts))
+	}
+
+	return nil
+}
+
+func reflectSliceOrArray(values url.Values, sv reflect.Value, name string, opts tagOptions) error {
+	var del byte
+	if opts.Contains("comma") {
+		del = ','
+	} else if opts.Contains("space") {
+		del = ' '
+	} else if opts.Contains("brackets") {
+		name = name + "[]"
+	}
+
+	if del != 0 {
+		s := new(bytes.Buffer)
+		first := true
+		for i := 0; i < sv.Len(); i++ {
+			if first {
+				first = false
+			} else {
+				s.WriteByte(del)
+			}
+			s.WriteString(valueString(sv.Index(i), opts))
+		}
+		values.Add(name, s.String())
+	} else {
+		for i := 0; i < sv.Len(); i++ {
+			values.Add(name, valueString(sv.Index(i), opts))
+		}
+	}
+	return nil
 }
 
 // reflectValue populates the values parameter from the struct fields in val.
@@ -134,6 +253,10 @@ func Values(v interface{}) (url.Values, error) {
 // Values function documentation) breadth-first.
 func reflectValue(values url.Values, val reflect.Value, scope string) error {
 	var embedded []reflect.Value
+
+	if val.Kind() == reflect.Map {
+		return reflectMap(values, val, scope)
+	}
 
 	typ := val.Type()
 	for i := 0; i < typ.NumField(); i++ {
@@ -175,32 +298,7 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 		}
 
 		if sv.Kind() == reflect.Slice || sv.Kind() == reflect.Array {
-			var del byte
-			if opts.Contains("comma") {
-				del = ','
-			} else if opts.Contains("space") {
-				del = ' '
-			} else if opts.Contains("brackets") {
-				name = name + "[]"
-			}
-
-			if del != 0 {
-				s := new(bytes.Buffer)
-				first := true
-				for i := 0; i < sv.Len(); i++ {
-					if first {
-						first = false
-					} else {
-						s.WriteByte(del)
-					}
-					s.WriteString(valueString(sv.Index(i), opts))
-				}
-				values.Add(name, s.String())
-			} else {
-				for i := 0; i < sv.Len(); i++ {
-					values.Add(name, valueString(sv.Index(i), opts))
-				}
-			}
+			reflectSliceOrArray(values, sv, name, opts)
 			continue
 		}
 
