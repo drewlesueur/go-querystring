@@ -22,10 +22,11 @@ package query
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -132,19 +133,20 @@ func Values(v interface{}) (url.Values, error) {
 }
 
 func reflectMap(values url.Values, val reflect.Value, scope string) error {
-	mapKeys := val.MapKeys()
+	typ := val.Type()
 
-	stringMapKeys := sort.StringSlice{}
-	for _, mapKey := range mapKeys {
-		if mapKey.Kind() == reflect.String {
-			stringMapKeys = append(stringMapKeys, mapKey.String())
-		}
+	if typ.Key().Kind() != reflect.String {
+		return errors.New("must have string keys")
 	}
+
+	mapKeys := val.MapKeys()
 
 	for _, mapKey := range mapKeys {
 		mapValue := val.MapIndex(mapKey)
 
 		name := mapKey.String()
+		fmt.Println("")
+		fmt.Println(name, "======================")
 		if scope != "" {
 			name = scope + "[" + name + "]"
 		}
@@ -157,7 +159,9 @@ func reflectMap(values url.Values, val reflect.Value, scope string) error {
 		fmt.Println("type", sv.Type())
 		fmt.Println("hi", reflect.ValueOf(sv))
 		fmt.Println("typeof", reflect.TypeOf(sv))
+		fmt.Println("Elem", typ.Elem())
 
+		json.Marshal([]string{"a"})
 		if sv.Kind() == reflect.Interface {
 			sv2 := sv.Interface()
 			fmt.Println("")
@@ -165,16 +169,19 @@ func reflectMap(values url.Values, val reflect.Value, scope string) error {
 			fmt.Println("orig", sv2)
 			fmt.Println("hi", reflect.ValueOf(sv2))
 			fmt.Println("typeof", reflect.TypeOf(sv2))
-			switch v := sv2.(type) {
-			case []interface{}:
-				sv = reflect.ValueOf(v)
-				fmt.Println("yoyo slice!")
-			case map[string]interface{}:
-				sv = reflect.ValueOf(v)
-				fmt.Println("yoyo map!")
-			default:
-				fmt.Println("what is this!")
-			}
+			sv = sv.Elem()
+			//switch v := sv2.(type) {
+			//case []interface{}:
+			//	sv = reflect.ValueOf(v)
+			//case map[string]interface{}:
+			//	sv = reflect.ValueOf(v)
+			//case []string:
+			//	sv = reflect.ValueOf(v)
+			//case []int:
+			//	sv = reflect.ValueOf(v)
+			//default:
+			//	fmt.Println("what is this!")
+			//}
 			fmt.Println("got here!")
 
 		}
@@ -193,6 +200,8 @@ func reflectMap(values url.Values, val reflect.Value, scope string) error {
 			fmt.Println("yay got here")
 			reflectSliceOrArray(values, sv, name, defaultMapOpts)
 			continue
+		} else {
+			fmt.Println(name, "is not a slice")
 		}
 
 		if sv.Type() == timeType {

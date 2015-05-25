@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 )
 
@@ -53,23 +54,28 @@ func Test3(t *testing.T) {
 
 func Test4(t *testing.T) {
 	someMap := map[string]interface{}{
-		"a": "b",
-		"c": 1,
-		"d": false,
-		"e": []interface{}{"f", "g", 2},
-		"f": []string{"f", "g"},
+		"a":  "b",
+		"c":  1,
+		"d":  false,
+		"e":  []interface{}{"f", "g", 2},
+		"fo": []string{"g", "h"},
 		//"h": map[string]interface{}{
 		//	"i": "j",
 		//	"k": []interface{}{"l", "m", "n"},
 		//},
 	}
 	//someSlice := []string{"Hello", "world"}
+
 	values, err := Values(someMap)
 	if err != nil {
 		t.Errorf("Values(%q) returned error: %v", someMap, err)
 	}
 	encoded := values.Encode()
-	fmt.Println(encoded)
+	unescaped, err := url.QueryUnescape(encoded)
+	if err != nil {
+		t.Fatal("could not escape")
+	}
+	fmt.Println(unescaped)
 }
 
 func Test5(t *testing.T) {
