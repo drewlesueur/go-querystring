@@ -59,10 +59,17 @@ func Test4(t *testing.T) {
 		"d":  false,
 		"e":  []interface{}{"f", "g", 2},
 		"fo": []string{"g", "h"},
-		//"h": map[string]interface{}{
-		//	"i": "j",
-		//	"k": []interface{}{"l", "m", "n"},
-		//},
+		"happy": map[string]interface{}{
+			"i": "j",
+			"k": []interface{}{"l", "m", "n"},
+			"o": map[string]string{
+				"a": "b",
+			},
+			"p": map[string]interface{}{
+				"a": "b",
+				"b": 1,
+			},
+		},
 	}
 	//someSlice := []string{"Hello", "world"}
 
@@ -79,7 +86,6 @@ func Test4(t *testing.T) {
 }
 
 func Test5(t *testing.T) {
-	return
 	someMap := map[string]string{
 		"a": "b",
 		"c": "d",

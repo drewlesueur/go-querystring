@@ -170,20 +170,6 @@ func reflectMap(values url.Values, val reflect.Value, scope string) error {
 			fmt.Println("hi", reflect.ValueOf(sv2))
 			fmt.Println("typeof", reflect.TypeOf(sv2))
 			sv = sv.Elem()
-			//switch v := sv2.(type) {
-			//case []interface{}:
-			//	sv = reflect.ValueOf(v)
-			//case map[string]interface{}:
-			//	sv = reflect.ValueOf(v)
-			//case []string:
-			//	sv = reflect.ValueOf(v)
-			//case []int:
-			//	sv = reflect.ValueOf(v)
-			//default:
-			//	fmt.Println("what is this!")
-			//}
-			fmt.Println("got here!")
-
 		}
 
 		if sv.Type().Implements(encoderType) {
@@ -216,7 +202,7 @@ func reflectMap(values url.Values, val reflect.Value, scope string) error {
 			sv = sv.Elem()
 		}
 
-		if sv.Kind() == reflect.Struct {
+		if sv.Kind() == reflect.Struct || sv.Kind() == reflect.Map {
 			reflectValue(values, sv, name)
 			continue
 		}
@@ -323,7 +309,7 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 			sv = sv.Elem()
 		}
 
-		if sv.Kind() == reflect.Struct {
+		if sv.Kind() == reflect.Struct || sv.Kind() == reflect.Map {
 			reflectValue(values, sv, name)
 			continue
 		}
